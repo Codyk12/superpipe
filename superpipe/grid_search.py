@@ -125,6 +125,7 @@ class GridSearch:
                 df_result.to_csv(f"{full_path}/{index}.csv")
             result = {
                 **GridSearch._flatten_params_dict(params),
+                "num_aggregated_runs": agg_runs,
                 'score': self.pipeline.score,
                 'Confusion_matrix': self.pipeline.cm,
                 'input_cost': self.pipeline.statistics.input_cost,
