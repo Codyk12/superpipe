@@ -68,31 +68,42 @@ class GridSearch:
         """
         Hashes a dictionary of parameters into a single string.
         """
+
         def serialize(obj):
             """JSON serializer for objects not serializable by default json code"""
             if callable(obj):
                 return obj.__name__  # Use function name for hashing
             raise TypeError(
                 f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
         return hash(json.dumps(params, default=serialize, sort_keys=True))
 
     def _flatten_params_dict(params_dict: Dict) -> Dict:
         """
         Flattens a dictionary of parameters into a single dictionary with concatenated keys.        
         """
+
         def value_to_string(value):
             return value.__name__ if callable(value) else str(value)
+
         return {f"{step}__{param}": value_to_string(value)
                 for step, params in params_dict.items()
                 for param, value in params.items()}
 
-    def run(self, df: pd.DataFrame, output_dir=None, verbose=False, styled=True):
+    def run(self, df: pd.DataFrame,
+            output_dir=None, run_name=None,
+            verbose=False, styled=True,
+            agg_runs=1):
         """
         Applies the grid search on a given DataFrame and optionally saves the results to CSV files.
 
         Args:
             df (pd.DataFrame): The DataFrame to apply the grid search on.
             output_dir (str, optional): The directory to save the result CSV files. If None, files are not saved.
+            run_name (str, optional): name for the entire pipeline run
+            verbose (bool): verbose output
+            styled (bool): styled dataframe output
+            agg_runs (int): number of runs to average results over
 
         Returns:
             pd.DataFrame: A DataFrame containing the results of the grid search.
@@ -102,12 +113,12 @@ class GridSearch:
         for i, params in enumerate(self.params_list):
             # TODO: check for duplicate params because of steps overriding global params
             if verbose:
-                print(f"Iteration {i+1} of {n}")
+                print(f"Iteration {i + 1} of {n}")
                 print("Params: ", params)
             self.pipeline.update_params(params)
-            df_result = self.pipeline.run(df.copy(), verbose)
+            df_result = self.pipeline.run(df.copy(), verbose=verbose, agg_runs=agg_runs)
             index = GridSearch._hash_params(params)
-            if output_dir is not None:
+            if output_dir:
                 full_path = os.path.join(os.getcwd(), output_dir)
                 if not os.path.exists(full_path):
                     os.makedirs(full_path)
@@ -115,6 +126,7 @@ class GridSearch:
             result = {
                 **GridSearch._flatten_params_dict(params),
                 'score': self.pipeline.score,
+                'Confusion_matrix': self.pipeline.cm,
                 'input_cost': self.pipeline.statistics.input_cost,
                 'output_cost': self.pipeline.statistics.output_cost,
                 'total_latency': self.pipeline.statistics.total_latency,
@@ -129,6 +141,12 @@ class GridSearch:
             results.append(result)
         self.results = pd.DataFrame(results)
         self._update_best()
+
+        if output_dir and run_name:
+            full_path = os.path.join(os.getcwd(), output_dir)
+            if not os.path.exists(full_path):
+                os.makedirs(full_path)
+            self.results.to_csv(f"{full_path}/{run_name}.csv")
 
         if styled:
             higher_columns = ['score']
