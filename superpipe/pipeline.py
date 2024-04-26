@@ -7,6 +7,7 @@ from superpipe.steps import Step, LLMStep, LLMStructuredStep, LLMStructuredCompo
 from superpipe.config import is_dev
 from sklearn.metrics import confusion_matrix
 
+
 @dataclass
 class PipelineStatistics:
     score: Optional[float] = None
@@ -66,7 +67,8 @@ class Pipeline:
         self.cm = None
         self.statistics = PipelineStatistics()
 
-    def run(self, data: Union[pd.DataFrame, Dict], row_wise=False, verbose=True, agg_runs=1):
+    def run(self, data: Union[pd.DataFrame, Dict], row_wise=False, verbose=True,
+            agg_runs=1):
         # Note: currently running row-wise is ~40% slower than step-wise (because of memory overhead?)
         data = pd.concat([data] * agg_runs)
         if row_wise and isinstance(data, pd.DataFrame):
@@ -74,6 +76,7 @@ class Pipeline:
                 for step in self.steps:
                     step.run(row, verbose)
                 return row
+
             if verbose and is_dev:
                 from tqdm import tqdm
                 tqdm.pandas(desc=f"Running pipeline row-wise")
@@ -109,7 +112,8 @@ class Pipeline:
         results = self.data.apply(lambda row: evaluation_fn(row), axis=1)
         self.data[f"__{evaluation_fn.__name__}__"] = results
         self.score = results.sum() / len(results)
-        self.labels = sorted(list(set(self.data.label).union(self.data.predict)))
+        self.labels = sorted(
+            list(set(self.data.label.str.lower()).union(self.data.predict.str.lower())))
         self.cm = confusion_matrix(self.data.label, self.data.predict) / agg_runs
         return self.score
 
