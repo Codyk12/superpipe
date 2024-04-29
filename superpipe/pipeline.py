@@ -101,7 +101,7 @@ class Pipeline:
             step_params = params.get(step.name, {})
             step.update_params({**global_params, **step_params})
 
-    def evaluate(self, evaluation_fn=None, agg_runs=1):
+    def evaluate(self, evaluation_fn=None):
         evaluation_fn = evaluation_fn or self.evaluation_fn
         if evaluation_fn is None:
             print("No evaluation function provided")
@@ -112,10 +112,10 @@ class Pipeline:
         results = self.data.apply(lambda row: evaluation_fn(row), axis=1)
         self.data[f"__{evaluation_fn.__name__}__"] = results
         self.score = results.sum() / len(results)
-        self.labels = sorted(
-            list(set(self.data.label.str.lower()).union(self.data.predict.str.lower())))
-        self.cm = confusion_matrix(self.data.label.str.lower(),
-                                   self.data.predict.str.lower()) / agg_runs
+        labels = self.data.label.str.lower()
+        predicts = self.data.predict.str.lower()
+        self.labels = list(set(labels).union(predicts))
+        self.cm = confusion_matrix(labels, predicts)
         return self.score
 
     def _aggregate_statistics(self, data: Union[pd.DataFrame, Dict]):
