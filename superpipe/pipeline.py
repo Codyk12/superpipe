@@ -133,7 +133,7 @@ class Pipeline:
             step_params = params.get(step.name, {})
             step.update_params({**global_params, **step_params})
 
-    def evaluate(self, evaluation_fn=None):
+    def evaluate(self, evaluation_fn=None, agg_runs=1):
         evaluation_fn = evaluation_fn or self.evaluation_fn
         if evaluation_fn is None:
             print("No evaluation function provided")
